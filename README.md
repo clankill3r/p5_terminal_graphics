@@ -20,7 +20,6 @@ When using VSCode set in the user settings which terminal to use, I use iTerm:
 `"terminal.external.osxExec": "iTerm.app",`
 
 In `launch.json` set that you wan't to use a external terminal using `"console": "externalTerminal"`.
-(If you downloaded this repository then it's already there).
 
 When using size you can define the renderer:
 
