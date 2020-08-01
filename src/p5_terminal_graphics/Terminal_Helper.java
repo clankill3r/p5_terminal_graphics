@@ -1,4 +1,4 @@
-package doeke_p5_terminal_graphics;
+package p5_terminal_graphics;
 
 import java.io.IOException;
 

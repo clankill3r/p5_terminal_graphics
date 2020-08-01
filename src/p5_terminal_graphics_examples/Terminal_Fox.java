@@ -1,9 +1,9 @@
-package doeke_p5_terminal_graphics_examples;
+package p5_terminal_graphics_examples;
 
 import processing.core.PApplet;
 import processing.core.PShape;
 import java.lang.invoke.MethodHandles;
-import doeke_p5_terminal_graphics.P5_Terminal_Graphics;
+import p5_terminal_graphics.P5_Terminal_Graphics;
 
 /*
 CONTROLS:

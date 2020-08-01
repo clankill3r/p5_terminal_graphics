@@ -1,11 +1,10 @@
-package doeke_p5_terminal_graphics;
+package p5_terminal_graphics;
 
 import processing.core.*;
 import processing.event.KeyEvent;
 import processing.opengl.*;
 import java.io.*;
-import static doeke_p5_terminal_graphics.Terminal_IO.*;
-import static doeke_p5_terminal_graphics.Terminal_Helper.*;
+import static p5_terminal_graphics.Terminal_Helper.*;
 import static java.awt.event.KeyEvent.*;
 
 public class P5_Terminal_Graphics extends PGraphics3D {
