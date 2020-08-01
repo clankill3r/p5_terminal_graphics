@@ -5,6 +5,7 @@ import processing.event.KeyEvent;
 import processing.opengl.*;
 import java.io.*;
 import static doeke_p5_terminal_graphics.Terminal_IO.*;
+import static doeke_p5_terminal_graphics.Terminal_Helper.*;
 import static java.awt.event.KeyEvent.*;
 
 public class P5_Terminal_Graphics extends PGraphics3D {
@@ -93,7 +94,7 @@ public class P5_Terminal_Graphics extends PGraphics3D {
             // PSurfaceJOGL surface = (PSurfaceJOGL) parent.getSurface();
             // surface.setVisible(false);
         
-            terminal_screen = create_and_start_terminal_screen();
+            terminal_screen = Terminal_Helper.create_and_start_terminal_screen();
             parent.registerMethod("post", this);
 
             // populate the brightness_to_char_lookup array
@@ -110,7 +111,7 @@ public class P5_Terminal_Graphics extends PGraphics3D {
 
     public void post() {
 
-        terminal_read_input_vk_keys((vk_key)-> {
+        Terminal_Helper.terminal_read_input_vk_keys((vk_key)-> {
 
             // in the processing source this is event.getModifiersEx();
             // Not sure if 0 is always fine in our case, but for now I don't need more.

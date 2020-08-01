@@ -5,10 +5,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
-
+//-----------Terminal_IO 
 public class Terminal_IO {
-
-private Terminal_IO() {}
+     private Terminal_IO() {}
 
 
 static public final String ANSI_BACKSPACE = "\b \b";
@@ -46,6 +45,9 @@ static final public String ANSI_CLEAR_ENTIRE_SCREEN_INCLUDING_SCROLLBACK = "\u00
 static final public String ANSI_CLEAR_FROM_CURSOR_TILL_END_LINE = "\u001b[0K";
 static final public String ANSI_CLEAR_FROM_CURSOR_TILL_BEGIN_LINE = "\u001b[1K";
 static final public String ANSI_CLEAR_ENTIRE_LINE = "\u001b[2K";
+
+
+static public String _terminal_restore_settings;
 
 
 static final public String ansi_cursor_up(int n) {
@@ -86,97 +88,8 @@ static final public String ansi_fill_color(int rgb) {
     return "\u001b[38;2;"+r+";"+g+";"+b+"m"; 
 }
 
-static public class Terminal_Screen {
-    public String tty_restore_config;
-    public int rows;
-    public int cols;
-    public Terminal_Screen_Buffer front_buffer = new Terminal_Screen_Buffer();
-    public Terminal_Screen_Buffer back_buffer  = new Terminal_Screen_Buffer();
-}
-
-static public class Terminal_Screen_Buffer {
-    public char[][] data;
-    public Cell_Style[][] style; // todo optmise allocation for slower devices like raspberry pi
-}
-
-static public class Cell_Style {
-    public int background = 0;
-    public int fill = 0xffffffff;
-    public int style_flags;
-}
-
-static public Terminal_Screen create_and_start_terminal_screen() {
-
-    Terminal_Screen screen = new Terminal_Screen();
-
-    screen.tty_restore_config = stty("-g");
-
-    stty("-icanon min 1"); // only 1 char recuired for a complete read
-    stty("-echo"); // disable echo
-    // stty("115200");
-    // stty("256000");
-    cmd("tput civis 2");
-
-    Runtime.getRuntime().addShutdownHook(new Thread() {
-        public void run() {
-            stop_terminal_screen(screen);
-        }
-    });
-
-    return screen;
-}
-
-static public boolean resize_terminal_screen_if_required(Terminal_Screen terminal) {
-
-    boolean change = false;
-
-    String size = stty("size").trim();
-    String[] tokens = size.split(" ");
-    int rows = Integer.parseInt(tokens[0]);
-    int cols = Integer.parseInt(tokens[1]);
-    // int cols = Integer.parseInt(exec(new String[] {"bash", "-c", "tput cols 2>
-    // /dev/tty"}));
-    // int rows = Integer.parseInt(exec(new String[] {"bash", "-c", "tput lines 2>
-    // /dev/tty"}));
-
-    if (cols != terminal.cols || rows != terminal.rows) {
-        change = true;
-        terminal.cols = cols;
-        terminal.rows = rows;
-        terminal.front_buffer.data = new char[rows][cols];
-        terminal.front_buffer.style = new Cell_Style[rows][cols];
-        terminal.back_buffer.data = new char[rows][cols];
-        terminal.back_buffer.style = new Cell_Style[rows][cols];
-        for (int y = 0; y < terminal.rows; y++) {
-            for (int x = 0; x < terminal.cols; x++) {
-                terminal.front_buffer.style[y][x] = new Cell_Style();
-                terminal.back_buffer.style[y][x] = new Cell_Style();
-            }
-        }
-    }
-    return change;
-}
 
 
-
-
-public interface Key_Pressed {
-    void key_pressed(int key);
-}
-
-
-static public void terminal_read_input_vk_keys(Key_Pressed key_pressed) {
-
-    try {
-        while (System.in.available() != 0) {
-            int vk_key = read_input_key();
-            key_pressed.key_pressed(vk_key);
-        }
-    } catch (IOException e) {
-        // restore terminal?
-        e.printStackTrace();
-    }
-}
 
 static public int read_input_key() {
     
@@ -281,156 +194,218 @@ static public int read_input_key() {
     return 0;
 }
 
-// static public int set_text(Terminal_Screen terminal, String text, int x, int y) {
-//     return set_text(terminal, text, x, y, 0, 0);
-// }
-
-// returns how many lines the text took, if y was already > then the rows 0 is returned
-static public int set_text(Terminal_Screen terminal, String text, int x, int y, int fill, int background) {
-
-    if (y > terminal.rows) {
-        return 0;
-    }
 
 
-    String[] lines = text.replace("\t", "  ").split("\n");
-    for (String line : lines) {
-        if (y < 0)
-            continue;
-        if (y >= terminal.rows)
-            break;
-        for (int i = 0; i < line.length(); i++) {
-            char c = line.charAt(i);
-            if (x + i >= terminal.cols)
-                break;
-            if (x + i < 0)
-                break;
-            terminal.back_buffer.data[y][x + i] = c;
-            terminal.back_buffer.style[y][x + i].fill = fill;
-            terminal.back_buffer.style[y][x + i].background = background;
-        }
-        y++;
-    }
 
-    return lines.length;
+// ------------------------------------------------------------
+
+static public String curses_version() {
+    return cmd("tput -V");
 }
 
-static public boolean cell_style_equals(Cell_Style a, Cell_Style b) {
-    return a.style_flags == b.style_flags && a.background == b.background && a.fill == b.fill;
+static public String terminal_type() {
+    return cmd("echo $TERM");
 }
 
-
-
-static public void printf(String s) {
-    System.console().printf("%s", s);
+static public int cols() {
+    return Integer.parseInt(cmd("tput cols"));
 }
 
-
-
-static public void draw_terminal_screen(Terminal_Screen terminal) {
-
-    // clear
-    printf("\u001b[1;1H"); // we set the cursor to 0, 0 for now to clear
-
-    int index = 0;
-    int last_written_index = -1;
-
-    for (int y = 0; y < terminal.rows; y++) {
-        for (int x = 0; x < terminal.cols; x++) {
-
-            index++;
-
-            Cell_Style f_style = terminal.front_buffer.style[y][x];
-            Cell_Style b_style = terminal.back_buffer.style[y][x];
-
-            char f_char = terminal.front_buffer.data[y][x];
-            char b_char = terminal.back_buffer.data[y][x];
-
-            if (f_char != b_char || !cell_style_equals(f_style, b_style)) {
-
-                if (last_written_index == index - 1) {
-
-                    Cell_Style last_style = null;
-                    
-                    if (x > 0) {
-                        last_style = terminal.back_buffer.style[y][x - 1];
-                    } 
-                    else {
-                        last_style = terminal.back_buffer.style[y - 1][terminal.cols - 1];
-                    }
-                    if (last_style.background != b_style.background) {
-                        printf(ansi_bg_color(b_style.background));
-                    }
-
-                    printf(ansi_fill_color(b_style.fill));
-                    printf(""+b_char);
-
-                } else {
-                    printf("\u001b["+(y+1)+";"+(x+1)+"H");
-                    printf(ANSI_RESET);
-                    printf(ansi_bg_color(b_style.background));
-                    printf(ansi_fill_color(b_style.fill));
-                    printf(""+b_char);
-                }
-
-                last_written_index = index;
-            }
-
-        }
-    }
-
-    // swap front and back buffer
-    Terminal_Screen_Buffer tmp = terminal.back_buffer;
-    terminal.back_buffer = terminal.front_buffer;
-    terminal.front_buffer = tmp;
-
-
+static public int rows() {
+    return Integer.parseInt(cmd("tput lines"));
 }
 
-
-static public void clear_terminal_backbuffer(Terminal_Screen terminal, int fill, int background) {
-
-    Terminal_Screen_Buffer back_buffer = terminal.back_buffer;
-
-    for (int y = 0; y < terminal.rows; y++) {
-        for (int x = 0; x < terminal.cols; x++) {
-            back_buffer.data[y][x] = ' ';
-            back_buffer.style[y][x].fill = fill;
-            back_buffer.style[y][x].background = background;
-        }
-    }
+static public int[] size() {
+    String[] tokens = cmd("stty size").split(" ");
+    return new int[] {
+        Integer.parseInt(tokens[0]), 
+        Integer.parseInt(tokens[1])
+    };
 }
 
-
-
-
-
-
-static public void stop_terminal_screen(Terminal_Screen terminal) {
-    stty("echo");
-    stty(terminal.tty_restore_config);
-    cmd("tput cvvis 2");
+static public int initial_tab_width() {
+    return Integer.parseInt(cmd("tput it"));
 }
 
-
-static public String stty(String args) {
-    String cmd = "stty " + args + " < /dev/tty";
-    return exec(new String[] { "sh", "-c", cmd });
+static public int n_colors() {
+    return Integer.parseInt(cmd("tput colors"));
 }
+
+static public void disable_echo() {
+    cmd("stty -echo < /dev/tty");
+}
+
+static public void enable_echo() {
+    cmd("stty echo < /dev/tty");
+}
+
+static public void do_not_try_to_clear_scrollback() {
+    cmd("tput -x");
+}
+
+static public void init() {
+    cmd("tput init");
+}
+
+static public void reset() {
+    cmd("reset 2> /dev/tty");
+}
+
+static public void clear() {
+    cmd("tput clear 2> /dev/tty");
+}
+
+static public void hide_cursor() {
+    cmd("tput civis > /dev/tty");
+}
+
+static public void show_cursor() {
+    cmd("tput cnorm > /dev/tty");
+}
+
+// or printf("\u001b[1;1H"); // we set the cursor to 0, 0 for now to clear
+static public void set_cursor(int x, int y) {
+    // Note(Doeke): works but ansi might be better for windows
+    // cmd("tput cup "+x+" "+y+" > /dev/tty");
+    // order y x is correct!
+    printf("\u001b["+y+";"+x+"H");
+}
+
+static public void delete_n_lines_below_cursor_inclusive(int n) {
+    cmd("tput dl "+n+" > /dev/tty");
+}
+
+static public void put_into_character_mode() {
+    cmd("stty -icanon min 1 < /dev/tty");
+}
+
+static public void store_terminal_settings() {
+    _terminal_restore_settings = cmd("stty -g < /dev/tty");
+}
+
+static public void restore_terminal_settings() {
+    assert _terminal_restore_settings != null;
+    // restoring it seems to be some nasty job
+    show_cursor();
+    clear();
+    turn_off_all_attributes();
+    reset(); // clear does not work well, so we use reset as well
+    enable_echo();
+    cmd("stty "+_terminal_restore_settings+" < /dev/tty");
+}
+
+static public void turn_off_all_attributes() {
+    cmd("tput sgr0 > /dev/tty");
+}
+
+static public void carriage_return() {
+    cmd("tput cr > /dev/tty");
+}
+
+// csr     cs      change scrolling region to lines #1 through #2 (p)
+// cub     le      move cursor left #1 spaces (p)
+// cub1    le      move cursor left one space
+// cud     do      move cursor down #1 lines (p*)
+// cud1    do      move cursor down one line
+// cuf     ri      move cursor right #1 spaces (p*)
+// cuf1    nd      move cursor right one space
+// cup     cm      move cursor to row #1, column #2 of screen (p)
+// cuu     up      move cursor up #1 lines (p*)
+// cuu1    up      move cursor up one line
+// cvvis   vs      make cursor very visible
+// dch     dc      delete #1 characters (p*)
+// dch1    dc      delete one character (*)
+// dim     mh      begin half intensity mode
+// dl      dl      delete #1 lines (p*)
+// dl1     dl      delete one line (*)
+// dsl     ds      disable status line
+// ech     ec      erase #1 characters (p)
+// ed      cd      clear to end of display (*)
+// el      ce      clear to end of line
+// el1     cb      clear to beginning of line, inclusive
+// enacs   ea      enable alternate character set
+// ff      ff      form feed for hardcopy terminal (*)
+// flash   vb      visible bell (must not move cursor)
+// fsl     fs      return from status line
+// hd      hd      move cursor down one-half line
+// home    ho      home cursor (if no `cup')
+// hpa     ch      move cursor to column #1 (p)
+// ht      ta      tab to next 8 space hardware tab stop
+// hts     st      set a tab in all rows, current column
+// hu      hu      move cursor up one-half line
+// ich     ic      insert #1 blank characters (p*)
+// ich1    ic      insert one blank character
+// if      if      name of file containing initialization string
+// il      al      add #1 new blank lines (p*)
+// il1     al      add one new blank line (*)
+// ind     sf      scroll forward (up) one line
+// indn    sf      scroll forward #1 lines (p)
+// invis   mk      begin invisible text mode
+// ip      ip      insert pad after character inserted (*)
+// iprog   ip      path of program for initialization
+// is1     i1      terminal initialization string
+// is2     is      terminal initialization string
+// is3     i3      terminal initialization string
+// kbeg    &9      shifted beginning key
+// kcan    &0      shifted cancel key
+// kcmd    *1      shifted command key
+// kcpy    *2      shifted copy key
+// kcrt    *3      shifted create key
+// kdc     *4      shifted delete char key
+// kdl     *5      shifted delete line key
+// kend    *7      shifted end key
+// keol    *8      shifted clear line key
+// kext    *9      shifted exit key
+// kfnd    *0      shifted find key
+// khlp    #1      shifted help key
+// khom    #2      shifted home key
+// kic     #3      shifted input key
+// klft    #4      shifted left arrow key
+// kmov    %b      shifted move key
+// kmsg    %a      shifted message key
+// knxt    %c      shifted next key
+// kopt    %d      shifted options key
+// kprt    %f      shifted print key
+// kprv    %e      shifted prev key
+// krdo    %g      shifted redo key
+// kres    %j      shifted resume key
+// krit    %i      shifted right arrow
+// krpl    %h      shifted replace key
+// ksav    !1      shifted save key
+// kspd    !2      shifted suspend key
+// kund    !3      shifted undo key
+// ka1     k1      upper left of keypad
+// ka3     k3      upper right of keypad
+// kb2     k2      center of keypad
+// kbeg    @1      beginning key
+// kbs     kb      backspace key
+// kc1     k4      lower left of keypad
+// kc3     k5      lower right of keypad
+// kcan    @2      cancel key
+// kcbt    kb      back tab key
+// kclo    @3      close key
+// kclr    kc      clear screen or erase key
+// kcmd    @4      command key
+// kcpy    @5      copy key
+// kcrt    @6      create key
+// kctab   kt      clear tab key
+// kcub1   kl      left arrow key
+// kcud1   kd      down arrow key
+// kcuf1   kr      right arrow key
+// kcuu1   ku      up arrow key
+// kdch1   kd      delete character key
+// kdl1    kl      delete line key
+// ked     ks      clear to end of screen key
+// kel     ke      clear to end of line key
+// kend    @7      end key
+// kext    @9      exit key
 
 
 static public String cmd(String args) {
-    String cmd = args + " > /dev/tty";
-
-    return exec(new String[] {
-                "sh",
-                "-c",
-                cmd
-            });
+    return exec("sh", "-c", args);
 }
 
-
-static public String exec(String[] cmd) {
+static public String exec(String... cmd) {
 
     try {
         ByteArrayOutputStream bout = new ByteArrayOutputStream();
@@ -463,6 +438,9 @@ static public String exec(String[] cmd) {
     
 }
 
+static public void printf(String s) {
+    System.console().printf("%s", s);
+}
 
     
 }
