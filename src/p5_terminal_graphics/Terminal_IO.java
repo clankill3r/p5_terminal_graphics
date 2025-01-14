@@ -208,15 +208,17 @@ static public String terminal_type() {
 }
 
 static public int cols() {
-    return Integer.parseInt(cmd("tput cols"));
+    return Integer.parseInt(cmd("tput cols 2>/dev/tty"));
 }
 
 static public int rows() {
-    return Integer.parseInt(cmd("tput lines"));
+    return Integer.parseInt(cmd("tput lines 2>/dev/tty"));
 }
 
 static public int[] size() {
-    String[] tokens = cmd("stty size").split(" ");
+
+    String[] tokens = cmd("stty size < /dev/tty").split(" ");
+
     return new int[] {
         Integer.parseInt(tokens[0]), 
         Integer.parseInt(tokens[1])
@@ -224,11 +226,11 @@ static public int[] size() {
 }
 
 static public int initial_tab_width() {
-    return Integer.parseInt(cmd("tput it"));
+    return Integer.parseInt(cmd("tput it 2>/dev/tty"));
 }
 
 static public int n_colors() {
-    return Integer.parseInt(cmd("tput colors"));
+    return Integer.parseInt(cmd("tput colors 2>/dev/tty"));
 }
 
 static public void disable_echo() {
