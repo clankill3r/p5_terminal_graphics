@@ -12,7 +12,7 @@ public class P5_Terminal_Graphics extends PGraphics3D {
 
     // This is used in size(600, 600, P5_Terminal_Graphics.TERMINAL);
     // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    static public final String TERMINAL = "doeke_p5_terminal_graphics.P5_Terminal_Graphics";
+    static public final String TERMINAL = "p5_terminal_graphics.P5_Terminal_Graphics";
     public boolean did_init = false;
     public Terminal_Screen terminal_screen;
     public PGraphics resized_g;
