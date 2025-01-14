@@ -4,6 +4,8 @@ import processing.core.PApplet;
 import processing.core.PShape;
 import java.lang.invoke.MethodHandles;
 import p5_terminal_graphics.P5_Terminal_Graphics;
+import p5_terminal_graphics.Terminal_Helper;
+import p5_terminal_graphics.Terminal_Helper.Terminal_Screen;
 
 /*
 CONTROLS:
@@ -32,7 +34,17 @@ public class Terminal_Fox extends PApplet {
     @Override
     public void setup() {        
         frameRate(60);
-        model = loadShape("fox.obj");  
+        model = loadShape("fox.obj");
+
+        // terminal_post will be called after processing did the rendering
+        // but before things are being send to the terminal.
+        // It allows to draw text for example
+        P5_Terminal_Graphics.terminal_post = this::terminal_post;
+    }
+
+    public void terminal_post(Terminal_Screen terminal_screen) {
+        int fps = (int)frameRate;
+        Terminal_Helper.set_text(terminal_screen, "fps: "+fps, terminal_screen.cols-7, 0, color(255), color(0));
     }
 
 

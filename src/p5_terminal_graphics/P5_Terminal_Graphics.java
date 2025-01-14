@@ -27,6 +27,11 @@ public class P5_Terminal_Graphics extends PGraphics3D {
     public int draw_terminal_screen_time_ms;
     public int background_color = 0;
     static public boolean display_stats = false;
+    static public Terminal_Post terminal_post;
+
+    public interface Terminal_Post {
+        void terminal_post(Terminal_Screen terminal_screen);
+    }
 
 
     @Override
@@ -163,6 +168,10 @@ public class P5_Terminal_Graphics extends PGraphics3D {
         if (display_stats) {
             set_text(terminal_screen, "fps: "+parent.frameRate, 0, 0, color(255), color(0));
             set_text(terminal_screen, "draw_terminal_screen_time_ms: "+draw_terminal_screen_time_ms, 0, 1, color(255), color(0));
+        }
+
+        if (terminal_post != null) {
+            terminal_post.terminal_post(terminal_screen);
         }
         
         int start = parent.millis();
